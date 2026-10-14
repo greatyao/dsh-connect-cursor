@@ -1,0 +1,13 @@
+url: https://github.com/greatyao/dsh-connect-cursor
+name: greatyao/dsh-connect-cursor
+category: model
+description:
+  en: >-
+    Connects a locally-signed-in Cursor desktop app to DeepSeek Harness as a
+    native LlmAdapter: reads the Cursor login token (state.vscdb / auth.json),
+    drives the private agent.v1.AgentService/Run bidi stream, and translates
+    InteractionUpdate deltas into dsh StreamChunks. No loopback proxy.
+  zh: >-
+    把本机已登录的 Cursor 桌面应用接入 DeepSeek Harness：读 Cursor 登录态（state.vscdb
+    / auth.json），直接驱动 agent.v1.AgentService/Run 双向流，把 InteractionUpdate
+    增量翻成 dsh StreamChunk。原生 LlmAdapter，不走 loopback 代理。

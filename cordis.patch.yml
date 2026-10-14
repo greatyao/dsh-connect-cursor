@@ -1,0 +1,5 @@
+# 注册 Cursor provider，但不改动 profile 的默认模型。
+# 插件复用 Cursor 桌面/CLI 的登录态；不启动额外 OAuth 流程。
+- insert:
+    - id: dsh-connect-cursor
+      name: dsh-connect-cursor
