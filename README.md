@@ -24,7 +24,7 @@
 - 协议私有、版本门控：`x-cursor-client-version` 过期会被上游以误导性限流错误拒绝，用 `CURSOR_CLI_VERSION` 跟一个真实 CLI 版本号
 - `model_details.model_id` 必须是默认 variant 的 slug（如 `claude-sonnet-5-thinking-high`），基础 id 会被拒为 `ERROR_BAD_MODEL_NAME`
 - `UserMessageAction` 必须带 `request_context`（缺了服务端只发心跳不产出）
-- protobuf schema 从 Cursor 自带的 `workbench.desktop.main.js` 提取（约 800 个类型），编码不再靠猜字段号
+- `lib/schema.js` 从 Cursor 自带的 `workbench.desktop.main.js` 提取 protobuf schema（约 800 个类型），供 Cursor 升级后重新核对字段号；编码本身不依赖它
 - token 用量统计：Cursor 不总发 `turn_ended`，`usage` 可能为空
 
 ## 安装
