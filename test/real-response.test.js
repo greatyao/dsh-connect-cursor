@@ -32,16 +32,17 @@ test('真实抓取的目录快照与当前解析结果一致（字段号回归�
     t.diagnostic('联网失败，改用 fixture 校验')
     return
   }
-  assert.ok(live.length >= 40, `只解析出 ${live.length} 个模型`)
-  const ids = live.map((m) => m.id).sort()
-  for (const id of ['claude-sonnet-5', 'composer-2.5', 'claude-opus-5']) {
-    assert.ok(ids.includes(id), `缺少 ${id}`)
+  // 目录随账号权限增减（实测见过 44 个与 9 个两种规模），只断言"解析出了东西"
+  // 与"每个模型都带默认 variant slug"，不断言具体数量或具体模型名。
+  assert.ok(live.length > 0, '应至少解析出一个模型')
+  for (const model of live) {
+    assert.ok(model.id, '模型应有 id')
+    // 部分模型（如 kimi-k2.7-code）确实没有 variant，服务端接受其基础 id。
+    if (model.variants.length) {
+      const preferred = model.variants.find((v) => v.default)
+      assert.ok(preferred?.id, `${model.id} 应有 default variant（服务端只认它的 slug）`)
+    }
   }
-  const sonnet = live.find((m) => m.id === 'claude-sonnet-5')
-  assert.equal(sonnet.display, 'Claude Sonnet 5')
-  assert.equal(sonnet.context, 300000)
-  assert.deepEqual(Object.keys(sonnet.options).sort(), ['context', 'effort', 'thinking'])
-  assert.deepEqual(sonnet.options.effort, ['low', 'medium', 'high', 'xhigh', 'max'])
 
   // 快照落盘，供离线运行比对
   if (!REAL) {
@@ -69,36 +70,44 @@ test('同名 variant 不覆盖基础 id 的默认参数', async (t) => {
   assert.deepEqual(params, { fast: 'true' })
 })
 
-test('真实模型族解析正确', async (t) => {
+test('每个模型的默认 variant slug 都能被解析出来', async (t) => {
   if (!REAL) return t.skip('无 fixture')
   __setCatalog(async () => REAL)
-  const cases = [
-    ['claude-sonnet-5', 'claude-sonnet-5', (p) => p.effort === 'high'],
-    ['composer-2.5-fast', 'composer-2.5', (p) => p.fast === 'true'],
-    ['claude-sonnet-5-max', 'claude-sonnet-5', (p) => p.effort === 'max'],
-    ['claude-sonnet-5-low', 'claude-sonnet-5', (p) => p.effort === 'low'],
-  ]
-  for (const [input, expectId, check] of cases) {
-    const { baseId, params } = await resolveModel(input)
-    assert.equal(baseId, expectId, `${input} → ${baseId}`)
-    assert.ok(check(params), `${input} 参数异常: ${JSON.stringify(params)}`)
+  // 目录随账号权限增减，测试不写死模型名 —— 逐个验证目录里的每个模型。
+  for (const model of REAL) {
+    const { modelId, baseId } = await resolveModel(model.id)
+    assert.equal(baseId, model.id)
+    const preferred = model.variants.find((v) => v.default)
+    // 有 default variant 时必须用它的 slug；没有时用基础 id（实测服务端也认）。
+    assert.equal(modelId, preferred?.id || model.id, `${model.id} 的 slug 解析异常`)
   }
 })
 
 test('显式参数语法覆盖默认值', async (t) => {
   if (!REAL) return t.skip('无 fixture')
   __setCatalog(async () => REAL)
-  const { baseId, params } = await resolveModel('claude-sonnet-5[thinking=false,effort=low]')
-  assert.equal(baseId, 'claude-sonnet-5')
-  assert.equal(params.thinking, 'false')
+  const target = REAL.find((m) => m.variants.some((v) => v.default && v.params.effort))
+  if (!target) return t.skip('目录里没有带 effort 的模型')
+  const { baseId, params } = await resolveModel(`${target.id}[effort=low]`)
+  assert.equal(baseId, target.id)
   assert.equal(params.effort, 'low')
 })
 
-test('未知模型回退到 fallback', async (t) => {
+test('显式指定不存在的模型时报错（不静默换成别的模型）', async (t) => {
   if (!REAL) return t.skip('无 fixture')
   __setCatalog(async () => REAL)
-  const { baseId } = await resolveModel('绝对不存在的模型-xyz', 'claude-sonnet-5')
-  assert.equal(baseId, 'claude-sonnet-5')
+  await assert.rejects(
+    () => resolveModel('绝对不存在的模型-xyz'),
+    /没有模型/,
+    '静默换模型会让用户以为在用 A、实际发出去的是 B',
+  )
+})
+
+test('未指定模型时取目录第一个（贴合账号实际可用范围）', async (t) => {
+  if (!REAL) return t.skip('无 fixture')
+  __setCatalog(async () => REAL)
+  const { baseId } = await resolveModel('')
+  assert.equal(baseId, REAL[0].id)
 })
 
 test('fetchCatalog 已导出（曾被重构误删，导致 catalog() 走网络必崩）', () => {

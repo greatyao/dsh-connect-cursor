@@ -38,11 +38,10 @@ test('resolveModel: 别名映射到目标模型', async () => {
   })
 })
 
-test('resolveModel: 未知模型回退到默认（catalog 里有的那个）', async () => {
+test('resolveModel: 未知模型报错而非静默替换', async () => {
   await withCatalog([SONNET], async () => {
-    // fallback 传 catalog 里存在的模型，断言回退到它。
-    const { baseId } = await resolveModel('totally-unknown-model-xyz', 'claude-sonnet-5')
-    assert.equal(baseId, 'claude-sonnet-5')
+    // 静默换模型会让用户以为在用 claude、实际发出去的是别的模型。
+    await assert.rejects(() => resolveModel('totally-unknown-model-xyz'), /没有模型/)
   })
 })
 
